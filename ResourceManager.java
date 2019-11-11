@@ -91,61 +91,39 @@ public class ResourceManager {
       }
 
       public static void naive(int numResources){
-          while(true){ // as long as there are some ways
-            // for every single pointer what you should do is somethign like see if you can address it if not add to queue
-            if(terminatedCount == taskList.size()){
-              break;
-            }
-            // FIRST ADDRESS THE PRIORITY QUEUE, could probably abstract the instruction handling
+          while(terminatedCount < taskList.size()){
+
               releaseArr = new int [numResources];
+              System.out.println("TIME : " + time);
 
-              while(true){
-                if(terminatedCount == taskList.size()){
-                  break;
-                }
-                System.out.println();
-                System.out.println("TIME : " + time);
-                boolean wait = addressWaiting();
-                boolean nonWait = addressNonWaiting();
-                for(Instruction i : removeSet){
-                  waitingList.remove(i);
-                }
-                System.out.println("TEST");
+              boolean wait = addressWaiting();
+              boolean notWait = addressNonWaiting();
 
-                //System.out.println("BOOLEAN " + wait + " " + nonWait );
-                // we in deadlock, lets abort resources
-                if(wait == false && nonWait == false){
-                  for(Task t : taskList){
-                    if(t.terminateTime == -1 && (!t.isAborted)){ // not terminated yet
-                      releaseAll(t);
+              while((wait == false && notWait == false) && !checkResources() && terminatedCount < taskList.size() ){
+                for(Task t : taskList){
+                  if(t.terminateTime == -1 && (!t.isAborted)){ // not terminated yet
+                    releaseAll(t);
 
-                      t.isAborted = true;
-                      terminatedCount ++;
-                      System.out.println("Task " + t.taskNumber + " is aborted");
+                    t.isAborted = true;
+                    terminatedCount ++;
+                    System.out.println("Task " + t.taskNumber + " is aborted");
 
-                      removeWaiting(t.taskNumber);
+                    removeWaiting(t.taskNumber);
 
-                      break; // break out of forloop
-                    }
+                    break; // break out of forloop
                   }
-                  //time += 1;
-
-                  updateResources();
-                  if(checkResources()){
-                    time += 1;
-                  }
-                }else{
-                  //System.out.println("BROKEN");
-                  time += 1;
-                  break;
                 }
-
+                updateResources();
               }
-            updateResources();
-            Collections.sort(waitingList);
 
+              updateResources();
+              time += 1;
+
+              for(Instruction i : removeSet){
+                waitingList.remove(i);
+              }
+              Collections.sort(waitingList);
           }
-
       }
 
 

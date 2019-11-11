@@ -114,7 +114,7 @@ public class ResourceManager {
                   }
                 }
                 updateResources();
-              }
+              
 
               updateResources();
               time += 1;

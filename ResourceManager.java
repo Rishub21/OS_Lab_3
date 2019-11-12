@@ -1,20 +1,25 @@
 import java.util.*;
 import java.io.File;
 
+/*
+This is the main class, it has 3 purposes:
+
+1) Sets definition of global variables such as the resource arrays
+2) Parses through the input file and populates data structures accordingly
+3) deploys both the naive and bankers resource allocation methods
+*/
 public class ResourceManager {
+
 
       static Scanner scanner;
       static List<Task> taskList;
       static List<Task> bankersTaskList;
       static int [] maxResourceArr;
       static int [] resourceArr;
-      static int [] bankersResourceArr;
       static int [] taskPointers;
-      static int [] bankersTaskPointers;
       static int [] releaseArr;
       static List<Instruction> waitingList;
       static int time;
-      static boolean cont;
       static int numResources;
       static int terminatedCount;
       static Set<Instruction> removeSet;
@@ -23,15 +28,22 @@ public class ResourceManager {
       public static void main(String [] args){
           time = 0;
           waitingList = new ArrayList<>();
+          removeSet = new HashSet<>();
+
           String fileName =  args[0];
           Scanner sc = new Scanner(System.in);
+
+          // try creating a file scanner
           try{
             sc = new Scanner(new File(fileName));
           }
           catch (Exception e) {
             e.printStackTrace();
           }
+
+          // we include two tasklists because we will have duplicates of each task object, one to be used with bankers, the other for naive
           taskList = new ArrayList<>();
+          bankersTaskList = new ArrayList<>();
           int numTasks = sc.nextInt();
           numResources = sc.nextInt();
 
@@ -40,12 +52,16 @@ public class ResourceManager {
 
           taskPointers = new int [numTasks];
 
+          // creating tasks from input file and adding to task list
           for(int i = 1; i <= numTasks; i ++){
             Task  t = new Task(i);
+            Task bt = new Task(i);
             taskList.add(t);
+            bankersTaskList.add(bt);
           }
 
           int curr = 0;
+          // determining how many resources we have of each type
           while(curr < numResources){
             int resourceNum = sc.nextInt();
             resourceArr[curr] = resourceNum;
@@ -55,32 +71,48 @@ public class ResourceManager {
 
           releaseArr = new int [numResources];
 
+          // Parsing through the instructions, and adding each one to respective task we made earlier
           while(sc.hasNext()){
             String instType = sc.next();
             int taskNumber = sc.nextInt();
 
             Task currTask = taskList.get(taskNumber - 1);
+            Task currBankersTask = bankersTaskList.get(taskNumber - 1);
             Type instructionType = Type.valueOf(instType);
 
             int resourceType = sc.nextInt();
             int resourceAmount = sc.nextInt();
 
-            Instruction i = new Instruction(instructionType, taskNumber, resourceType, resourceAmount);
+            Instruction i = new Instruction(instructionType, taskNumber, resourceType, resourceAmount, false);
+            Instruction bI = new Instruction(instructionType, taskNumber, resourceType, resourceAmount, true);
             currTask.addInstruction(i);
+            currBankersTask.addInstruction(bI);
           }
-          // naive(numResources);
-          // for(Task t : taskList){
-          //   t.printTask();
-          // }
-          // System.out.println("************************************");
-          // naivePrint();
+
+          // deploy the fifo (naive) allocator
+          naive(numResources);
+          System.out.println("*****FIFO*****");
+          naivePrint();
 
 
+          // reset time for bankers
+          time = 0;
+          terminatedCount = 0;
+          removeSet.clear();
+          resourceArr = maxResourceArr.clone();
+          releaseArr = new int [numResources];
+          taskPointers = new int [numTasks];
+          taskList  = bankersTaskList;
+          waitingList.clear();
+
+          System.out.println("\n");
           banker();
-          System.out.println("************************************");
+          System.out.println("*****BANKERS*****");
           naivePrint();
 
       }
+
+      
 
       public static void updateResources(){
         for(int i =  0 ; i < releaseArr.length; i ++){
@@ -105,8 +137,8 @@ public class ResourceManager {
         while(terminatedCount < taskList.size()){
            releaseArr = new int [numResources];
 
-            System.out.println("TIME : " + time);
-            System.out.println("CONTENTS: " + resourceArr[0]);
+            // System.out.println("TIME : " + time);
+            // System.out.println("CONTENTS: " + resourceArr[0]);
 
             boolean wait = addressWaitingBanker();
             boolean notWait = addressNonWaitingBanker();
@@ -136,17 +168,14 @@ public class ResourceManager {
         boolean addressedSomething = false;
         removeSet = new HashSet<>();
         for(Instruction i : waitingList){
-          //System.out.println("YOOOO" + resourceArr[i.resourceType - 1]);
-          // if( i.taskNumber == 1){
-          //   System.out.println("YOOOO: " + time +  + i.resourceAmount + " " + i.resourceType + " " + resourceArr[i.resourceType - 1]);
-          // }
+
           if(bankerRequest(i)){
-            System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
+            //System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
 
             removeSet.add(i);
             addressedSomething = true;
           }else{
-            System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
+            //System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
           }
         }
 
@@ -174,15 +203,15 @@ public class ResourceManager {
               }else{
                 currTask.startTime = time;
                 addressedSomething = true;
-                System.out.println("Task " + currTask.taskNumber + " was initiated");
+                //System.out.println("Task " + currTask.taskNumber + " was initiated");
               }
 
             }else if(instructionType == Type.request){
               if(bankerRequest(currInstruction)){
                 addressedSomething = true;
-                System.out.println("Task " + currTask.taskNumber + " had its request completed");
+                //System.out.println("Task " + currTask.taskNumber + " had its request completed");
               }else{
-                System.out.println("Task " + currTask.taskNumber + " could not be completed");
+              //  System.out.println("Task " + currTask.taskNumber + " could not be completed");
               }
             }// when it is time to add the waitingInstructions what you should do is something along the lines of
             else if(instructionType == Type.compute){
@@ -192,17 +221,17 @@ public class ResourceManager {
               }
               currTask.computeTime -= 1;
 
-              System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
+              //System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
 
               addressedSomething = true;
             }else if(instructionType == Type.release){
               int amountReleased = currInstruction.resourceAmount;
               release(resourceType, amountReleased, currTask);
-              System.out.println("Task " + currTask.taskNumber + " released its resources");
+              //System.out.println("Task " + currTask.taskNumber + " released its resources");
               addressedSomething = true;
             }else{ // if its terminate
               currTask.terminateTime = time;
-              System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
+              //System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
               terminatedCount ++;
               releaseAll(currTask);
               addressedSomething = true;
@@ -222,6 +251,7 @@ public class ResourceManager {
         int amountRequested = currInstruction.resourceAmount;
         if(currTask.claimsArr[resourceType - 1] < currTask.resourceHoldings[resourceType - 1] + amountRequested ){
           currTask.isAborted = true;
+          //System.out.println("CLAIMS " + currTask.claimsArr[resourceType - 1] );
           terminatedCount ++;
           releaseAll(currTask);
           return false;
@@ -230,14 +260,14 @@ public class ResourceManager {
         if(resourceArr[resourceType - 1] >= amountRequested){
           currTask.resourceHoldings[resourceType - 1] += amountRequested;
           resourceArr[resourceType - 1] -= amountRequested;
-          System.out.println("CONTENTS** " +       resourceArr[resourceType - 1] );
+          //System.out.println("CONTENTS** " +       resourceArr[resourceType - 1] );
 
           if(resourceCheck(currTask)){
             return true;
           }else{
             currTask.resourceHoldings[resourceType - 1] -= amountRequested;
             resourceArr[resourceType - 1] += amountRequested;
-            System.out.println("CONTENTS** " +       resourceArr[resourceType - 1] );
+            //System.out.println("CONTENTS** " +       resourceArr[resourceType - 1] );
 
             if(!waitingList.contains(currInstruction)){
               currInstruction.arrivalTime = time;
@@ -262,7 +292,7 @@ public class ResourceManager {
           while(terminatedCount < taskList.size()){
 
               releaseArr = new int [numResources];
-              System.out.println("TIME : " + time);
+              //System.out.println("TIME : " + time);
 
               boolean wait = addressWaiting();
               boolean notWait = addressNonWaiting();
@@ -274,7 +304,7 @@ public class ResourceManager {
 
                     t.isAborted = true;
                     terminatedCount ++;
-                    System.out.println("Task " + t.taskNumber + " is aborted");
+                    //System.out.println("Task " + t.taskNumber + " is aborted");
 
                     removeWaiting(t.taskNumber);
 
@@ -299,12 +329,12 @@ public class ResourceManager {
         removeSet = new HashSet<>();
         for(Instruction i : waitingList){
           if(request(i)){
-            System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
+            //System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
 
             removeSet.add(i);
             addressedSomething = true;
           }else{
-            System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
+            //System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
           }
         }
 
@@ -328,13 +358,13 @@ public class ResourceManager {
             if(instructionType == Type.initiate){
               currTask.startTime = time;
               addressedSomething = true;
-              System.out.println("Task " + currTask.taskNumber + " was initiated");
+              //System.out.println("Task " + currTask.taskNumber + " was initiated");
             }else if(instructionType == Type.request){
               if(request(currInstruction)){
                 addressedSomething = true;
-                System.out.println("Task " + currTask.taskNumber + " had its request completed");
+                //System.out.println("Task " + currTask.taskNumber + " had its request completed");
               }else{
-                System.out.println("Task " + currTask.taskNumber + " could not be completed");
+                //System.out.println("Task " + currTask.taskNumber + " could not be completed");
               }
             }// when it is time to add the waitingInstructions what you should do is something along the lines of
             else if(instructionType == Type.compute){
@@ -344,17 +374,17 @@ public class ResourceManager {
               }
               currTask.computeTime -= 1;
 
-              System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
+              //System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
 
               addressedSomething = true;
             }else if(instructionType == Type.release){
               int amountReleased = currInstruction.resourceAmount;
               release(resourceType, amountReleased, currTask);
-              System.out.println("Task " + currTask.taskNumber + " released its resources");
+              //System.out.println("Task " + currTask.taskNumber + " released its resources");
               addressedSomething = true;
             }else{ // if its terminate
               currTask.terminateTime = time;
-              System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
+            //  System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
               terminatedCount ++;
               releaseAll(currTask);
               addressedSomething = true;
@@ -422,14 +452,19 @@ public class ResourceManager {
     }
 
     public static void naivePrint(){
+      int totalTime = 0;
+      int totalWait = 0;
       for(Task t : taskList){
 
         if(t.isAborted){
           System.out.println("TASK " + t.taskNumber + " aborted"  );
         }else{
-          System.out.println("TASK " + t.taskNumber + " " + t.terminateTime + " " + t.waitingCount );
+          System.out.println("TASK " + t.taskNumber + " " + t.terminateTime + " " + t.waitingCount  + " %" + 100 * ((float)t.waitingCount / t.terminateTime));
+          totalTime += t.terminateTime;
+          totalWait += t.waitingCount;
         }
       }
+      System.out.println("TOTAL TIME:  " + totalTime + " TOTAL WAIT: " + totalWait + " %" + 100 *((float)totalWait / totalTime));
 
     }
 
@@ -481,7 +516,7 @@ class Instruction implements Comparable<Instruction> {
   int claim;
   int arrivalTime;
 
-  public Instruction(Type instructionType, int taskNumber, int resourceType, int resourceAmount){
+  public Instruction(Type instructionType, int taskNumber, int resourceType, int resourceAmount, boolean banker){
     this.instructionType = instructionType;
     this.taskNumber = taskNumber;
 
@@ -493,7 +528,11 @@ class Instruction implements Comparable<Instruction> {
       this.resourceAmount = resourceAmount;
     }else if(instructionType == Type.initiate){
       this.claim = resourceAmount;
-      (ResourceManager.taskList.get(taskNumber - 1)).claimsArr[resourceType - 1] = resourceAmount;
+      if(!banker){
+        (ResourceManager.taskList.get(taskNumber - 1)).claimsArr[resourceType - 1] = resourceAmount;
+      }else{
+        (ResourceManager.bankersTaskList.get(taskNumber - 1)).claimsArr[resourceType - 1] = resourceAmount;
+      }
     }else{
       // terminate
     }

@@ -114,7 +114,7 @@ public class ResourceManager {
                   }
                 }
                 updateResources();
-              
+              }
 
               updateResources();
               time += 1;
@@ -279,11 +279,13 @@ class Task {
   boolean isAborted = false;
   int computeTime;
   int waitingCount;
+  int [] claimsArr;
 
   public Task(int taskNumber){
     instructionList = new ArrayList<>();
     this.taskNumber = taskNumber;
-    resourceHoldings = new int [ResourceManager.numResources];
+    this.resourceHoldings = new int [ResourceManager.numResources];
+    this.claimsArr = new int [ResourceManager.numResources];
   }
 
   public void addInstruction(Instruction i){
@@ -324,6 +326,7 @@ class Instruction implements Comparable<Instruction> {
       this.resourceAmount = resourceAmount;
     }else if(instructionType == Type.initiate){
       this.claim = resourceAmount;
+      (ResourceManager.taskList.get(taskNumber - 1)).claimsArr[resourceType - 1] = resourceAmount;
     }else{
       // terminate
     }

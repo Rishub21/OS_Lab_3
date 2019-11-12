@@ -5,9 +5,12 @@ public class ResourceManager {
 
       static Scanner scanner;
       static List<Task> taskList;
+      static List<Task> bankersTaskList;
       static int [] maxResourceArr;
       static int [] resourceArr;
+      static int [] bankersResourceArr;
       static int [] taskPointers;
+      static int [] bankersTaskPointers;
       static int [] releaseArr;
       static List<Instruction> waitingList;
       static int time;
@@ -219,6 +222,7 @@ public class ResourceManager {
         int amountRequested = currInstruction.resourceAmount;
         if(currTask.claimsArr[resourceType - 1] < currTask.resourceHoldings[resourceType - 1] + amountRequested ){
           currTask.isAborted = true;
+          terminatedCount ++;
           releaseAll(currTask);
           return false;
         }

@@ -386,7 +386,7 @@ public class ResourceManager {
 
           if(instructionType == Type.initiate){
             if(currInstruction.claim > maxResourceArr[currInstruction.resourceType]){
-              System.out.println("Banker aborts task " + currTask.taskNumber+ " before run begins: claim for resource " + (resourceType + 1)+ " (" + currInstruction.claim + ") " + " number of units present " + " (" + maxResourceArr[currInstruction.resourceType] + ") ");
+              System.out.println("Banker aborts task " + currTask.taskNumber+ " before run begins: claim for resource " + (resourceType + 1)+ " (" + currInstruction.claim + ") " + " exceeds number of units present " + " (" + maxResourceArr[currInstruction.resourceType] + ") ");
               currTask.isAborted = true;
               terminatedCount += 1;
             }else{

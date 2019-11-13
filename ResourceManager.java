@@ -484,9 +484,9 @@ public class ResourceManager {
       for(Task t : taskList){
 
         if(t.isAborted){
-          System.out.println("TASK " + t.taskNumber + " aborted"  );
+          System.out.println("TASK    " + t.taskNumber + " aborted"  );
         }else{
-          System.out.println("TASK " + t.taskNumber + " " + t.terminateTime + " " + t.waitingCount  + " %" + 100 * ((float)t.waitingCount / t.terminateTime));
+          System.out.println("TASK    " + t.taskNumber + " " + t.terminateTime + " " + t.waitingCount  + " %" + 100 * ((float)t.waitingCount / t.terminateTime));
           totalTime += t.terminateTime;
           totalWait += t.waitingCount;
         }
@@ -567,7 +567,7 @@ class Instruction implements Comparable<Instruction> {
     System.out.println(instructionType);
   }
 
-// this is how we sort the instructions in our waitingList 
+// this is how we sort the instructions in our waitingList
   public int compareTo(Instruction other){
     return this.arrivalTime - other.arrivalTime;
   }

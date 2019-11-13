@@ -7,6 +7,15 @@ This is the main class, it has 3 purposes:
 1) Sets definition of global variables such as the resource arrays
 2) Parses through the input file and populates data structures accordingly
 3) deploys both the naive and bankers resource allocation methods
+
+
+At a high level there are tasks that represent each task and each task has a set of instruction objects which detail what type of
+instruction and how much resource are needed for it.
+
+in cycle 0-1 we parse through all the tasks 1st instruction, in cycle 1-2 we parse through all the tasks 2nd instructions and so on
+
+if a cycle needs to be blocked under fifo it will be added to a waitingList
+if a request is deemed unsafe by bankers it will not be fulfilled 
 */
 public class ResourceManager {
 

@@ -149,166 +149,6 @@ public class ResourceManager {
 
       }
 
-      // this is the bankers algorithm: it functions almost exactly like the naive except it has a few extra checks
-      // to account for claims and to ensure we are always in a safe state. It first addresseds any blocked tasks, then unblocked
-      public static void banker(){
-        while(terminatedCount < taskList.size()){
-           releaseArr = new int [numResources];
-
-            // first address any blocked tasks
-            addressWaitingBanker();
-            // address any unblocked tasks
-            addressNonWaitingBanker();
-            // update released resources
-            updateResources();
-            time += 1;
-
-            for(Instruction i : removeSet){
-              waitingList.remove(i);
-            }
-            Collections.sort(waitingList);
-        }
-
-      }
-
-      // this method us to determine if we are in a safe state after attempting to satisfy a particular request. It does this by seeing if we can sattisfy all
-      // of this tasks' other resource needs after this hypothetical allocation in the "worst case"
-      public static boolean isSafe(Task currTask){
-
-        for(int i = 0; i < numResources; i ++){
-          if(currTask.claimsArr[i] - currTask.resourceHoldings[i] > resourceArr[i]){
-            return false;
-          }
-        }
-        return true;
-      }
-
-      // This method addresses the blocked request for Bankers by seeing if we can fulfull the request via the BankerRequest method
-      public static boolean addressWaitingBanker(){
-        boolean addressedSomething = false;
-        removeSet = new HashSet<>();
-        for(Instruction i : waitingList){
-
-          if(bankerRequest(i)){
-            //System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
-            removeSet.add(i);
-            addressedSomething = true;
-          }else{
-            //System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
-          }
-        }
-
-        return addressedSomething;
-      }
-
-
-      // this method addresses the non waiting instructions. It is very similar to the fifo one, but it checks if the initalizations ask for too many numResources
-      // for each instruction type this method will attempt to either address or block it.
-      public static boolean addressNonWaitingBanker(){
-        boolean addressedSomething = false;
-        for(int i = 0 ; i < taskPointers.length; i ++){
-          int pointerIndex = taskPointers[i];
-          Task currTask = taskList.get(i);
-
-          if(currTask.terminateTime == - 1 && (currTask.isAborted == false) && Collections.disjoint(waitingList, currTask.instructionList)){
-
-            Instruction currInstruction = currTask.instructionList.get(pointerIndex);
-            Type instructionType = currInstruction.instructionType;
-            int resourceType = currInstruction.resourceType;
-
-            if(instructionType == Type.initiate){
-              if(currInstruction.claim > maxResourceArr[currInstruction.resourceType]){
-                System.out.println("Banker aborts task " + currTask.taskNumber+ " before run begins: claim for resource " + resourceType + " (" + currInstruction.claim + ") " + " number of units present " + " (" + maxResourceArr[currInstruction.resourceType] + ") ");
-                currTask.isAborted = true;
-                terminatedCount += 1;
-              }else{
-                currTask.startTime = time;
-                addressedSomething = true;
-              }
-
-            }else if(instructionType == Type.request){
-              if(bankerRequest(currInstruction)){
-                addressedSomething = true;
-              }else{
-              //  System.out.println("Task " + currTask.taskNumber + " could not be completed");
-              }
-            }// when it is time to add the waitingInstructions what you should do is something along the lines of
-            else if(instructionType == Type.compute){
-              int numberCycles = currInstruction.numberCycles;
-              if(currTask.computeTime == 0){
-                currTask.computeTime = currInstruction.numberCycles;
-              }
-              currTask.computeTime -= 1;
-
-              //System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
-
-              addressedSomething = true;
-            }else if(instructionType == Type.release){
-              int amountReleased = currInstruction.resourceAmount;
-              release(resourceType, amountReleased, currTask);
-              //System.out.println("Task " + currTask.taskNumber + " released its resources");
-              addressedSomething = true;
-            }else{ // if its terminate
-              currTask.terminateTime = time;
-              //System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
-              terminatedCount ++;
-              releaseAll(currTask);
-              addressedSomething = true;
-            }
-            if(currTask.computeTime == 0){
-              taskPointers[i] ++;
-            }
-          }
-
-        }
-        return addressedSomething;
-      }
-
-      // this method determines if a request can be made. It determines if we have enough resources, if it does not exceed claim and if the request puts us in a safe state by calling the isSafe method defined above
-      public static boolean bankerRequest(Instruction currInstruction){
-        Task currTask = taskList.get(currInstruction.taskNumber - 1);
-        int resourceType = currInstruction.resourceType;
-        int amountRequested = currInstruction.resourceAmount;
-        if(currTask.claimsArr[resourceType - 1] < currTask.resourceHoldings[resourceType - 1] + amountRequested ){
-          System.out.println("During Cycle " + time + "-" + (time + 1) + " of Banker's algorithm, Task " + currTask.taskNumber + " request exceeds its claim; aborted ");
-          for(int j = 0 ; j < currTask.resourceHoldings.length; j ++){
-            System.out.println(currTask.resourceHoldings[j] + " units of resource " + (j+ 1) +" available next cycle");
-          }
-          currTask.isAborted = true;
-          terminatedCount ++;
-          releaseAll(currTask);
-          return false;
-        }
-
-        if(resourceArr[resourceType - 1] >= amountRequested){
-          currTask.resourceHoldings[resourceType - 1] += amountRequested;
-          resourceArr[resourceType - 1] -= amountRequested;
-
-          if(isSafe(currTask)){
-            return true;
-          }else{
-            currTask.resourceHoldings[resourceType - 1] -= amountRequested;
-            resourceArr[resourceType - 1] += amountRequested;
-
-            if(!waitingList.contains(currInstruction)){
-              currInstruction.arrivalTime = time;
-              waitingList.add(currInstruction);
-            }
-            currTask.waitingCount += 1;
-
-            return false;
-          }
-        }else{
-
-          if(!waitingList.contains(currInstruction)){
-            currInstruction.arrivalTime = time;
-            waitingList.add(currInstruction);
-          }
-          currTask.waitingCount += 1;
-        }
-        return false;
-      }
-
       // this is how our fifo allocator is deployed, by first addressing the blocked request and then the non blocked requests.
       //  it will continue to abort tasks in the wihle loop as long as it does not have thhe resources it needs
       public static void naive(int numResources){
@@ -343,6 +183,7 @@ public class ResourceManager {
           }
       }
 
+      // this is how fifo addresses the blocked request , by seeing if it can grant the request as seen by the request call defined below
       public static boolean addressWaiting(){
         boolean addressedSomething = false;
         removeSet = new HashSet<>();
@@ -360,6 +201,7 @@ public class ResourceManager {
         return addressedSomething;
       }
 
+      // this is how fifo addresses the unblocked instructions, it will determine what type of instruction it is and act accordingly
       public static boolean addressNonWaiting(){
         boolean addressedSomething = false;
         for(int i = 0 ; i < taskPointers.length; i ++){
@@ -416,14 +258,14 @@ public class ResourceManager {
         }
         return addressedSomething;
       }
-      // this helper method releases all the resources of an aborted or terminated tasks
+      // this helper method releases all the resources of an aborted or terminated tasks by calling the hlper release function
       public static void releaseAll(Task currTask){
         for(int j = 0 ; j < currTask.resourceHoldings.length; j ++){
           release(j + 1, currTask.resourceHoldings[j], currTask);
         }
       }
 
-      // this is how the fifo algorithm conducts a request, if there are enoughh resources it will satify, otehrwise it will block
+      // this is how the fifo algorithm conducts a request, if there are enoughh resources it will satify, otherrwise it will block the instruction by adding it to the waitingList of Instructions
       public static boolean request(Instruction currInstruction){
         Task currTask = taskList.get(currInstruction.taskNumber - 1);
         int resourceType = currInstruction.resourceType;
@@ -471,6 +313,166 @@ public class ResourceManager {
             }
           }
 
+      }
+      return false;
+    }
+
+    // this is the bankers algorithm: it functions almost exactly like the naive except it has a few extra checks
+    // to account for claims and to ensure we are always in a safe state. It first addresseds any blocked tasks, then unblocked
+    public static void banker(){
+      while(terminatedCount < taskList.size()){
+         releaseArr = new int [numResources];
+
+          // first address any blocked tasks
+          addressWaitingBanker();
+          // address any unblocked tasks
+          addressNonWaitingBanker();
+          // update released resources
+          updateResources();
+          time += 1;
+
+          for(Instruction i : removeSet){
+            waitingList.remove(i);
+          }
+          Collections.sort(waitingList);
+      }
+
+    }
+
+    // this method us to determine if we are in a safe state after attempting to satisfy a particular request. It does this by seeing if we can sattisfy all
+    // of this tasks' other resource needs after this hypothetical allocation in the "worst case"
+    public static boolean isSafe(Task currTask){
+
+      for(int i = 0; i < numResources; i ++){
+        if(currTask.claimsArr[i] - currTask.resourceHoldings[i] > resourceArr[i]){
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Very similar to its navie counter part, This method addresses the blocked request for Bankers by seeing if we can fulfull the request via the BankerRequest method
+    public static boolean addressWaitingBanker(){
+      boolean addressedSomething = false;
+      removeSet = new HashSet<>();
+      for(Instruction i : waitingList){
+
+        if(bankerRequest(i)){
+          //System.out.println("Task " + i.taskNumber + " had its request completed off the waiting List" );
+          removeSet.add(i);
+          addressedSomething = true;
+        }else{
+          //System.out.println("Task " + i.taskNumber + " could not be completed, remains on waiting list" );
+        }
+      }
+
+      return addressedSomething;
+    }
+
+
+    // this method addresses the non waiting instructions. It is very similar to the fifo one, but it checks if the initalizations ask for too many numResources
+    // for each instruction type this method will attempt to either address or block it.
+    public static boolean addressNonWaitingBanker(){
+      boolean addressedSomething = false;
+      for(int i = 0 ; i < taskPointers.length; i ++){
+        int pointerIndex = taskPointers[i];
+        Task currTask = taskList.get(i);
+
+        if(currTask.terminateTime == - 1 && (currTask.isAborted == false) && Collections.disjoint(waitingList, currTask.instructionList)){
+
+          Instruction currInstruction = currTask.instructionList.get(pointerIndex);
+          Type instructionType = currInstruction.instructionType;
+          int resourceType = currInstruction.resourceType;
+
+          if(instructionType == Type.initiate){
+            if(currInstruction.claim > maxResourceArr[currInstruction.resourceType]){
+              System.out.println("Banker aborts task " + currTask.taskNumber+ " before run begins: claim for resource " + resourceType + " (" + currInstruction.claim + ") " + " number of units present " + " (" + maxResourceArr[currInstruction.resourceType] + ") ");
+              currTask.isAborted = true;
+              terminatedCount += 1;
+            }else{
+              currTask.startTime = time;
+              addressedSomething = true;
+            }
+
+          }else if(instructionType == Type.request){
+            if(bankerRequest(currInstruction)){
+              addressedSomething = true;
+            }else{
+            //  System.out.println("Task " + currTask.taskNumber + " could not be completed");
+            }
+          }// when it is time to add the waitingInstructions what you should do is something along the lines of
+          else if(instructionType == Type.compute){
+            int numberCycles = currInstruction.numberCycles;
+            if(currTask.computeTime == 0){
+              currTask.computeTime = currInstruction.numberCycles;
+            }
+            currTask.computeTime -= 1;
+
+            //System.out.println("Task " + currTask.taskNumber + " computes " + (currInstruction.numberCycles - currTask.computeTime));
+
+            addressedSomething = true;
+          }else if(instructionType == Type.release){
+            int amountReleased = currInstruction.resourceAmount;
+            release(resourceType, amountReleased, currTask);
+            //System.out.println("Task " + currTask.taskNumber + " released its resources");
+            addressedSomething = true;
+          }else{ // if its terminate
+            currTask.terminateTime = time;
+            //System.out.println("Task " + currTask.taskNumber + " terminates at time t = " + time);
+            terminatedCount ++;
+            releaseAll(currTask);
+            addressedSomething = true;
+          }
+          if(currTask.computeTime == 0){
+            taskPointers[i] ++;
+          }
+        }
+
+      }
+      return addressedSomething;
+    }
+
+    // this method determines if a request can be made. It determines if we have enough resources, if it does not exceed claim and if the request puts us in a safe state by calling the isSafe method defined above
+    public static boolean bankerRequest(Instruction currInstruction){
+      Task currTask = taskList.get(currInstruction.taskNumber - 1);
+      int resourceType = currInstruction.resourceType;
+      int amountRequested = currInstruction.resourceAmount;
+      if(currTask.claimsArr[resourceType - 1] < currTask.resourceHoldings[resourceType - 1] + amountRequested ){
+        System.out.println("During Cycle " + time + "-" + (time + 1) + " of Banker's algorithm, Task " + currTask.taskNumber + " request exceeds its claim; aborted ");
+        for(int j = 0 ; j < currTask.resourceHoldings.length; j ++){
+          System.out.println(currTask.resourceHoldings[j] + " units of resource " + (j+ 1) +" available next cycle");
+        }
+        currTask.isAborted = true;
+        terminatedCount ++;
+        releaseAll(currTask);
+        return false;
+      }
+
+      if(resourceArr[resourceType - 1] >= amountRequested){
+        currTask.resourceHoldings[resourceType - 1] += amountRequested;
+        resourceArr[resourceType - 1] -= amountRequested;
+
+        if(isSafe(currTask)){
+          return true;
+        }else{
+          currTask.resourceHoldings[resourceType - 1] -= amountRequested;
+          resourceArr[resourceType - 1] += amountRequested;
+
+          if(!waitingList.contains(currInstruction)){
+            currInstruction.arrivalTime = time;
+            waitingList.add(currInstruction);
+          }
+          currTask.waitingCount += 1;
+
+          return false;
+        }
+      }else{
+
+        if(!waitingList.contains(currInstruction)){
+          currInstruction.arrivalTime = time;
+          waitingList.add(currInstruction);
+        }
+        currTask.waitingCount += 1;
       }
       return false;
     }
@@ -537,7 +539,7 @@ class Instruction implements Comparable<Instruction> {
   int numberCycles;
   int claim;
   int arrivalTime;
-
+// the consturctor determines whhat kind of instruction type it is and sets the parameters accordingly, not every instruction will have all parameters filled
   public Instruction(Type instructionType, int taskNumber, int resourceType, int resourceAmount, boolean banker){
     this.instructionType = instructionType;
     this.taskNumber = taskNumber;
@@ -565,6 +567,7 @@ class Instruction implements Comparable<Instruction> {
     System.out.println(instructionType);
   }
 
+// this is how we sort the instructions in our waitingList 
   public int compareTo(Instruction other){
     return this.arrivalTime - other.arrivalTime;
   }

@@ -491,7 +491,7 @@ public class ResourceManager {
           totalWait += t.waitingCount;
         }
       }
-      System.out.println("TOTAL TIME:  " + totalTime + " TOTAL WAIT: " + totalWait + " %" + 100 *((float)totalWait / totalTime));
+      System.out.println("TOTAL" + "    " +  totalTime + " " + totalWait + " %" + 100 *((float)totalWait / totalTime));
 
     }
 

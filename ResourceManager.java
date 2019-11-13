@@ -98,6 +98,7 @@ public class ResourceManager {
 
           // deploy the fifo (naive) allocator
           naive(numResources);
+          System.out.println();
           System.out.println("*****FIFO*****");
           printTasks();
 
